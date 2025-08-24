@@ -19,3 +19,9 @@ content/
 *.pyd
 *.pkl
 *.pickle
+
+# Виртуальные среды
+.venv
+venv
+env
+.env

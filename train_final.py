@@ -10,10 +10,12 @@ from datasets import Dataset, DatasetDict
 from transformers import (BertTokenizerFast, BertForTokenClassification,
                           TrainingArguments, Trainer)
 from transformers import DataCollatorForTokenClassification
-from transformers import EarlyStoppingCallback
 from datasets import load_metric
 import numpy as np
 import matplotlib.pyplot as plt
+
+from auxiliary_module import (load_json_data, save_json_data,
+                              convert_to_dataframe)
 
 
 metric = load_metric("seqeval")
@@ -28,26 +30,10 @@ logging.basicConfig(filename='training_log.txt', level=logging.INFO,
                     format='%(asctime)s - %(levelname)s - %(message)s')
 
 
-# Загрузка данных из JSON
-def load_json_data(filename):
-    with open(filename, 'r', encoding='utf-8') as file:
-        data = json.load(file)
-    return data
-
-
-def save_json_data(data, file_name):
-    with open(file_name, 'w', encoding='utf-8') as file:
-        json.dump(data, file)
-
-
-# Преобразование данных в pandas DataFrame
-def convert_to_dataframe(data):
-    rows = []
-    for entry in data:
-        tokens = entry[TOKEN]
-        tags = entry[TAGS]
-        rows.append({TOKEN: tokens, TAGS: tags})
-    return pd.DataFrame(rows)
+def out_filter(data):
+    """Фильтр для OUT."""
+    return [sent for sent in data
+            if any(tag != 'O' for tag in sent[TAGS])]
 
 
 # Функция для токенизации и выравнивания меток
@@ -107,10 +93,10 @@ model_name = 'alexyalunin/RuBioBERT'
 dataset_path = 'content\\train.csv'
 test_path = 'content\\test.json'
 
-EPOCHS = 10
+EPOCHS = 8
 TRAIN_BATCH_SIZE = 16
 EVAL_BATCH_SIZE = 16
-LEARNING_RATE = 2e-5
+LEARNING_RATE = 1.5e-5
 DECAY = 0.01
 LOGGING_STEP = 30
 LR_SCHEDULER_TYPE = "linear"
@@ -118,10 +104,10 @@ WARMUP_RADIO = 0.06
 FP16 = True
 GRADIENT_ACCUMULATION_STEP = 2
 
-data = load_json_data(annotation)
+data = out_filter(load_json_data(annotation))
 df_1 = convert_to_dataframe(data)
 data, _ = train_test_split(data, test_size=0.1)
-save_json_data(_, test_path)
+save_json_data(test_path, _)
 df_2 = convert_to_dataframe(data)
 # Разделение данных на обучающий и тестовый наборы
 train_df, test_df = train_test_split(df_2, test_size=0.1)

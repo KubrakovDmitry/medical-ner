@@ -24,9 +24,9 @@ def save_json_data(filename, data):
 def convert_to_dataframe(data):
     rows = []
     for entry in data:
-        tokens = entry['words']
+        tokens = entry['tokens']
         tags = entry['tags']
-        rows.append({'words': tokens, 'tags': tags})
+        rows.append({'tokens': tokens, 'tags': tags})
     return pd.DataFrame(rows)
 
 

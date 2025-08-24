@@ -1,0 +1,21 @@
+# Директории
+models/
+results/
+logs/
+images/
+csv_files/
+excel_files/
+__pycache__/
+content/
+
+# Файлы
+*.xlsx
+*.csv
+*.txt
+
+# Python
+*.pyc
+*.pyo
+*.pyd
+*.pkl
+*.pickle

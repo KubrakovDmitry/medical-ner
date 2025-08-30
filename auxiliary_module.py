@@ -2,6 +2,10 @@ import json
 import pandas as pd
 
 
+TOKENS = 'tokens'
+TAGS = 'tags'
+
+
 def joining_tokens(tokes):
     text = ' '.join(tokes)
     return text
@@ -24,9 +28,9 @@ def save_json_data(filename, data):
 def convert_to_dataframe(data):
     rows = []
     for entry in data:
-        tokens = entry['tokens']
-        tags = entry['tags']
-        rows.append({'tokens': tokens, 'tags': tags})
+        tokens = entry[TOKENS]
+        tags = entry[TAGS]
+        rows.append({TOKENS: tokens, TAGS: tags})
     return pd.DataFrame(rows)
 
 

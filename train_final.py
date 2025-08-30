@@ -25,6 +25,7 @@ TAGS = 'tags'
 
 TRAIN = 'train'
 TEST = 'test'
+OUT_TAG = 'O'
 # Настройка логирования
 logging.basicConfig(filename='training_log.txt', level=logging.INFO,
                     format='%(asctime)s - %(levelname)s - %(message)s')
@@ -33,13 +34,17 @@ logging.basicConfig(filename='training_log.txt', level=logging.INFO,
 def out_filter(data):
     """Фильтр для OUT."""
     return [sent for sent in data
-            if any(tag != 'O' for tag in sent[TAGS])]
+            if any(tag != OUT_TAG for tag in sent[TAGS])]
 
 
 # Функция для токенизации и выравнивания меток
 def tokenize_and_align_labels(examples):
     global max_length
-    tokenized_inputs = tokenizer(examples[TOKEN], truncation=True, is_split_into_words=True, padding='max_length', max_length=max_length)
+    tokenized_inputs = tokenizer(examples[TOKEN],
+                                 truncation=True,
+                                 is_split_into_words=True,
+                                 padding='max_length',
+                                 max_length=max_length)
     labels = []
     for i, label in enumerate(examples[TAGS]):
         word_ids = tokenized_inputs.word_ids(batch_index=i)
@@ -48,10 +53,12 @@ def tokenize_and_align_labels(examples):
             if word_idx is None:
                 label_ids.append(-100)  # Ignored token
             else:
-                label_ids.append(label2id.get(label[word_idx], label2id['O']))
+                label_ids.append(label2id.get(label[word_idx],
+                                              label2id[OUT_TAG]))
         # Пометить последний токен [SEP] как -100
         if tokenizer.sep_token_id:
-            sep_index = tokenized_inputs['input_ids'][i].index(tokenizer.sep_token_id)
+            sep_index = tokenized_inputs['input_ids'][i].index(
+                tokenizer.sep_token_id)
             label_ids[sep_index] = -100
         
         labels.append(label_ids)
@@ -127,8 +134,10 @@ dataset_dict = DatasetDict({
 })
 
 max_length = 512
-tokenizer = BertTokenizerFast.from_pretrained(model_name, trust_remote_code=True)
-model = BertForTokenClassification.from_pretrained(model_name, num_labels=len(label_list), trust_remote_code=True)
+tokenizer = BertTokenizerFast.from_pretrained(model_name,
+                                              trust_remote_code=True)
+model = BertForTokenClassification.from_pretrained(model_name, num_labels=len(label_list),
+                                                   trust_remote_code=True)
 
 model.config.label2id = label2id
 model.config.id2label = id2label

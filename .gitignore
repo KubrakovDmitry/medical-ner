@@ -7,6 +7,7 @@ csv_files/
 excel_files/
 __pycache__/
 content/
+.mypy_cache/
 
 # Файлы
 *.xlsx
@@ -20,8 +21,12 @@ content/
 *.pkl
 *.pickle
 
+
+
 # Виртуальные среды
 .venv
 venv
 env
 .env
+poetry.lock
+pyproject.toml

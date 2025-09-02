@@ -1,0 +1,52 @@
+<!DOCTYPE html>
+<html>
+    <head>
+        <meta charset="utf-8"/>
+        <title>Выделение именованных сущностей</title>
+        <link rel="stylesheet" href="/static/styles.css">
+    </head>
+    <body>
+        <h2>Выделение именованных сущностей</h2>
+        <form name="ner_form">
+            <div class="textarea-group">
+                <textarea name="text_area" placeholder="Введите текст..."></textarea>
+                <textarea name="ner_area" placeholder="Результат появится здесь..." readonly></textarea>    
+            </div>
+            <div class="buttons">
+                <input type="button" name="send" value="Отправить"/>
+                <input type="reset" value="Очистить"/>
+            </div>
+        </form>
+
+        <script>
+            const ner_url = "/ner";
+            const headers = { 
+                "Accept": "application/json",
+                "Content-Type": "application/json"
+            };
+
+            async function sentText(text_with_ner){
+                const response = await fetch(ner_url, {
+                        method: "POST",
+                        headers: headers,
+                        body: JSON.stringify({text: text_with_ner})
+                    }
+                );
+                const responseText = await response.json();
+                return responseText.text;
+            }
+
+            async function sendTextForNER(event){
+                const text = document.ner_form.text_area.value.trim();
+                if (text){
+                    document.ner_form.ner_area.value = await sentText(text);
+                }
+                else{
+                    alert("Введите текст!");
+                    event.preventDefault();
+                }
+            }
+            document.ner_form.send.addEventListener("click", sendTextForNER);
+        </script>
+    </body>
+</html>

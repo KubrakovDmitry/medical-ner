@@ -136,7 +136,8 @@ dataset_dict = DatasetDict({
 max_length = 512
 tokenizer = BertTokenizerFast.from_pretrained(model_name,
                                               trust_remote_code=True)
-model = BertForTokenClassification.from_pretrained(model_name, num_labels=len(label_list),
+model = BertForTokenClassification.from_pretrained(model_name,
+                                                   num_labels=len(label_list),
                                                    trust_remote_code=True)
 
 model.config.label2id = label2id

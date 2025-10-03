@@ -5,6 +5,7 @@ logs/
 images/
 csv_files/
 excel_files/
+content/
 __pycache__/
 content/
 .mypy_cache/

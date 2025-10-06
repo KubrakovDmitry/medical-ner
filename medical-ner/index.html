@@ -17,6 +17,9 @@
                 <input type="reset" value="Очистить"/>
             </div>
         </form>
+        <div name="ner_container">
+            <input type="button" name="to_learn" value="Обучение модели">
+        </div>
 
         <script>
             const ner_url = "/ner";
@@ -47,6 +50,14 @@
                 }
             }
             document.ner_form.send.addEventListener("click", sendTextForNER);
+
+            const model_url = '/model'
+
+            async function goToModelPage() {
+                
+            }
+
+            document
         </script>
     </body>
 </html>

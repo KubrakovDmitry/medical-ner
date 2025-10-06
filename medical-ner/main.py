@@ -32,3 +32,10 @@ def ner(data=Body()):
         text += f'{i}) {entity};\n'
 
     return {TEXT: text[:text.rfind(';\n')] + '.'}
+
+@app.get('/model')
+def get_model_page():
+    """Переход на страницу обучения модели."""
+    return FileResponse('model_page.html')
+
+

@@ -95,8 +95,10 @@ def compute_metrics(p):
     return flat_results
 
 
-annotation = 'content\\data_bio_8_1.json'
-model_name = 'alexyalunin/RuBioBERT'
+annotation = 'content\\data_bio_4.json'
+# DeepPavlov/rubert-base-cased
+# alexyalunin/RuBioBERT
+model_name = 'DeepPavlov/rubert-base-cased'
 dataset_path = 'content\\train.csv'
 test_path = 'content\\test.json'
 

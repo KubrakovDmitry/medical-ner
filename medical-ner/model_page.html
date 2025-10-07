@@ -7,8 +7,67 @@
     </head>
     <body>
         <h2>Обучение модели NER</h2>
-        <form name="ner_form">
-            
-        </form>
+        <div name="input_container">
+            <form name="ner_form">
+                <label for="name_model">Модель: </label>
+                <select name="name_model" id="name_model">
+                    <option value="DeepPavlov/rubert-base-cased">rubert</option>
+                    <option value="alexyalunin/RuBioBERT">RuBioBERT</option>
+                </select>
+
+                <label for="dataset">Датасет для обучения: </label>
+                <input type="file" accept="json" id="dataset" name="dataset">
+
+                <label for="epochs">Укажите числе: </label>
+                <input type="number" name="epochs" id="epochs" value="3" min="1" max="50"/>
+
+                <label for="train_batch_size">Размер обучающих пакетов</label>
+                <input type="number" name="train_batch_size" id="train_batch_size" value="4" min="1" max="1024"/>
+
+                <label for="eval_batch_size">Размер валидирующих пакетов</label>
+                <input type="number" name="eval_batch_size" id="eval_batch_size" value="4" min="1" max="1024"/>
+
+                <label for="learning_rate">Скорость обучения</label>
+                <input type="number" name="learning_rate" id="learning_rate" step="any" value="1.5e-5" min="1e-10" max="1"/>
+
+                <label for="decay">Скорость затухания скорости обучения</label>
+                <input type="number" name="decay" id="decay" step="0.01" value="0.01" min="0.0" max="1.0"/>
+
+                <label for="log">Частота логирования</label>
+                <input type="number" name="log" id="log" value="30" min="1" max="1000"/>
+
+                <label for="lr_type">Тип обучения</label>
+                <select name="lr_type" id="lr_type">
+                    <option value="">ничего</option>
+                    <option value="linear">линейное</option>
+                    <option value="cosine_with_restarts">косинусоидальное с периодическими перезапусками</option>
+                    <option value="exponential">экспоненциальное затухание</option>
+                    <option value="polynomial">полиномиальное затухание</option>
+                    <option value="step">падение через равные промежутки (ступеньками)</option>
+                    <option value="multistep">падение в заданные шаги</option>
+                    <option value="constant">без изменений</option>
+                    <option value="cosine_annealing_warm_restarts">косинусоидальное с «разогревом» перед каждым циклом</option>
+                    <option value="onecycle">сначала lr растёт, потом падает (очень эффективный метод)</option>
+                    <option value="warmup_linear">линейное с разогрев</option>
+                    <option value="warmup_cosine">косинусоидальное с разогрев</option>
+                    <option value="warmup_constant">без изменений с разогрев</option>
+                </select>
+
+                <label for="warmup_radio">доля для разогрева</label>
+                <input type="number" name="warmup_radio" id="warmup_radio" step="0.01" value="0.05" min="0.0" max="1.0"/>
+
+                <label for="fp16">Обучение с понижением точности (FP16)</label>
+                <input type="checkbox" name="fp16" id="fp16" value="True"/>
+
+                <label for="grad_accum">Накопление градиента перед обновлением весов моделей</label>
+                <input type="number" name="grad_accum" id="grad_accum" min="0" max="1000" value="2"/>
+
+                <input name="submit" type="submit" value="Обучить"/>
+                <input name="cancel" type="reset" value="Отменить"/>
+            </form>
+        </div>
+        <div name="output_container">
+            <textarea></textarea>
+        </div>
     </body>
 </html>

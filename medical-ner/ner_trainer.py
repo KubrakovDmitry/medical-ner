@@ -10,7 +10,9 @@ from transformers import (BertTokenizerFast, BertForTokenClassification,
                           TrainingArguments, Trainer)
 from transformers import DataCollatorForTokenClassification
 # from datasets import load_metric
-from evaluate import load
+# from evaluate import load
+from seqeval.metrics import (classification_report, f1_score, recall_score,
+                             precision_score)
 import numpy as np
 import matplotlib.pyplot as plt
 
@@ -19,7 +21,7 @@ from auxiliary_module import (load_json_data, save_json_data,
 
 
 # metric = load_metric("seqeval")
-metric = load("seqeval")
+# metric = load("seqeval")
 
 TOKEN = 'tokens'
 TAGS = 'tags'
@@ -86,8 +88,8 @@ class NERTrainer:
             true_labels.append(true_label)
             pred_labels.append(pred_label)
 
-        results = metric.compute(predictions=pred_labels,
-                                 references=true_labels)
+        results = self._metrics(predictions=pred_labels,
+                                labels=true_labels)
         print("Результаты метрики:", results)
         flat_results = {}
         for k, v in results.items():
@@ -98,7 +100,20 @@ class NERTrainer:
                 flat_results[k] = v
         return flat_results
 
+    def _metrics(self, predictions, labels):
+        """
+        Вычисление метрик для NER с помощью seqeval.
+        predictions и labels должны быть списками списков тегов.
+        """
+        return {
+            "precision": precision_score(labels, predictions),
+            "recall": recall_score(labels, predictions),
+            "f1": f1_score(labels, predictions),
+            "report": classification_report(labels, predictions)
+        }
+
     def train(self,
+              dataset_name='data_bio_4.json',
               annotation='content\\data_bio_4.json',
               model_name='DeepPavlov/rubert-base-cased',
               test_path='content\\test.json',
@@ -114,7 +129,7 @@ class NERTrainer:
               gradient_accumulation_steps=2):
         """Обучение модели для NER."""
         if annotation:
-            data = annotation
+            data = self._out_filter(annotation)
         else:
             data = self._out_filter(load_json_data(annotation))
         df_1 = convert_to_dataframe(data)
@@ -190,7 +205,7 @@ class NERTrainer:
         trainer.train()
 
         # Сохранение модели
-        annotation_name = annotation.split('.')[0]
+        annotation_name = dataset_name.split('.')[0]
         clean_annotation = annotation_name.replace('content\\', '')
         timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
         base_model_name = model_name.split('/')[-1]
@@ -202,33 +217,43 @@ class NERTrainer:
 
         # Оценка модели
         results = trainer.evaluate()
-        print(results)
+        print('results =', results)
 
-        for entry in trainer.state.log_history:
-            print(entry.keys())
+        # for entry in trainer.state.log_history:
+        #     print(entry.keys())
 
-        metrics = pd.DataFrame(
-            [entry for entry in trainer.state.log_history
-             if "eval_loss" in entry])
-        metrics = metrics[[col for col in ["epoch", "eval_overall_precision",
-                                           "eval_overall_recall",
-                                           "eval_overall_f1",
-                                           "eval_loss"]
-                          if col in metrics.columns]]
-        print(metrics.columns)
-        print(f'metrics = {metrics}')
-        metrics.to_csv('метрики модели по эпохам.csv', index=False)
-        plt.plot(metrics["epoch"], metrics["eval_loss"], label="Loss")
-        plt.plot(metrics["epoch"], metrics["eval_overall_precision"],
-                 label="Precision")
-        plt.plot(metrics["epoch"], metrics["eval_overall_recall"],
-                 label="Recall")
-        plt.plot(metrics["epoch"], metrics["eval_overall_f1"], label="F1")
+        # metrics = pd.DataFrame(
+        #     [entry for entry in trainer.state.log_history
+        #      if "eval_loss" in entry])
+        # metrics = metrics[[col for col in ["epoch", "eval_overall_precision",
+        #                                    "eval_overall_recall",
+        #                                    "eval_overall_f1",
+        #                                    "eval_loss"]
+        #                   if col in metrics.columns]]
+        # record = metrics.to_dict(orient="records")
+        # print(f'metrics = {record}')
+        # final_f1 = results.get("eval_f1", 0.0)
+        # print(f'final_f1 = {final_f1}')
+        # metrics.to_csv('метрики модели по эпохам.csv', index=False)
+        # plt.plot(metrics["epoch"], metrics["eval_loss"], label="Loss")
+        # plt.plot(metrics["epoch"], metrics["eval_overall_precision"],
+        #          label="Precision")
+        # plt.plot(metrics["epoch"], metrics["eval_overall_recall"],
+        #          label="Recall")
+        # plt.plot(metrics["epoch"], metrics["eval_overall_f1"], label="F1")
 
-        plt.xlabel("Эпохи")
-        plt.ylabel("Значения метрик")
-        plt.legend()
-        plt.title("Метрики по эпохам")
-        plt.savefig(f'images\\{model_name.replace("models/", "")}.png',
-                    dpi=300,
-                    bbox_inches="tight")
+        # plt.xlabel("Эпохи")
+        # plt.ylabel("Значения метрик")
+        # plt.legend()
+        # plt.title("Метрики по эпохам")
+        # plt.savefig(f'images\\{model_name.replace("models/", "")}.png',
+        #             dpi=300,
+        #             bbox_inches="tight")
+        return {
+            "metrics": {
+                "precision": results.get("eval_precision"),
+                "recall": results.get("eval_recall"),
+                "f1": results.get("eval_f1"),
+                "loss": results.get("eval_loss")
+            }
+        }

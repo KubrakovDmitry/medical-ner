@@ -7,9 +7,9 @@
     </head>
     <body>
         <h2>Обучение модели NER</h2>
-        <form name="ner_form">
-            <label for="name_model">Модель: </label>
-            <select name="name_model" id="name_model">
+        <form id="ner_form" name="ner_form">
+            <label for="model_name">Модель: </label>
+            <select name="model_name" id="model_name">
                 <option value="DeepPavlov/rubert-base-cased">rubert</option>
                 <option value="alexyalunin/RuBioBERT">RuBioBERT</option>
             </select>
@@ -64,22 +64,48 @@
             <input name="submit" type="submit" value="Обучить"/>
             <input name="cancel" type="reset" value="Отменить"/>
         </form>
-        <div name="output_container">
-            <textarea></textarea>
+        <div id="output_container" name="output_container">
+            <textarea id="result_area" name="result_area"></textarea>
+        </div>
+        <div id="metrics_container" style="margin-top: 20px;">
+            <h3>Результаты обучения:</h3>
+            <ul id="metrics_list"></ul>
         </div>
         <script>
             async function trainModel(event) {
-                response = await fetch("/train-ner-model", {
-                        method: "POST",
-                        headers: { "Accept": "application/json" }
-                        body: {
-                            
-                        }
-                    });
-                
-                res
+                event.preventDefault();
+                const resultArea = document.getElementById("result_area")
+                const metricsList = document.getElementById("metrics_list")
+
+                try {
+                    resultArea.value = "Обучение запущено, подождите..."
+                    const response = await fetch("/train-ner-model", {
+                            method: "POST",
+                            body: new FormData(event.target)
+                        });
+                    if (!response.ok) {
+                        throw new Error(`Ошибка HTTP: ${response.status}`);
+                    }
+
+                    const result = await response.json();
+                    resultArea.value = result.message || "Обучение завершено успешно!";
+
+                    if (result.metrics) {
+                        const { precision, recall, f1, loss } = result.metrics;
+                        metricsList.innerHTML = `
+                            <li><b>Precision: </b>${precision?.toFixed(3) ?? '-'}</li>
+                            <li><b>Recall: </b>${recall?.toFixed(3) ?? '-'}</li>
+                            <li><b>F1: </b>${f1?.toFixed(3) ?? '-'}</li>
+                            <li><b>Loss: </b>${loss?.toFixed(3) ?? '-'}</li>
+                        `;
+                    }
+                }
+                catch (error) {
+                    resultArea.value = "При обучении модели возникла ошибка!";
+                    console.log(error);
+                }
             }
-            document.ner_form.submit.addEventListener("submit", trainModel)
+            document.getElementById("ner_form").addEventListener("submit", trainModel);
         </script>
     </body>
 </html>

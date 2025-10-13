@@ -1,5 +1,7 @@
 """Программа для тестирования языковых моделей."""
 
+from pathlib import Path
+
 from transformers import AutoModelForTokenClassification, AutoTokenizer
 import torch
 
@@ -10,7 +12,8 @@ from auxiliary_module import (load_json_data, merge_tokens_for_bert,
 class NERModel:
     """Класс, реализующий NER."""
 
-    __model_name = 'models\\model_data_bio_8_1_RuBioBERT_20250819_191511'
+    __path_model_dir = Path('models')
+    __model_name = __path_model_dir / 'model_data_bio_8_1_RuBioBERT_20250819_191511'
     __annotation = 'data_bio_8_1.json'
 
     def __init__(self, model_name=None):

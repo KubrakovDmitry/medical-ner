@@ -2,8 +2,8 @@
 
 import json
 
-from fastapi import FastAPI, Body
-from fastapi.responses import FileResponse
+from fastapi import FastAPI, Body, File, Form, UploadFile
+from fastapi.responses import FileResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
 
 from ner_model import NERModel
@@ -12,7 +12,7 @@ from ner_trainer import NERTrainer
 
 TEXT = "text"
 ANNOTATION = 'dataset'
-MODEL_NAME = 'name_model'
+MODEL_NAME = 'model_name'
 EPOCHS = 'epochs'
 TRAIN_BATCH_SIZE = 'train_batch_size'
 EVAL_BATCH_SIZE = 'eval_batch_size'
@@ -50,27 +50,46 @@ def ner(data=Body()):
 
 
 @app.get('/model')
-def get_model_page():
+async def get_model_page():
     """Переход на страницу обучения модели."""
     return FileResponse('train_page.html')
 
 
 @app.post('/train-ner-model')
-def train(data=Body()):
+async def train(
+    dataset: UploadFile = File(...),
+    model_name: str = Form(...),
+    epochs: int = Form(3),
+    train_batch_size: int = Form(4),
+    eval_batch_size: int = Form(4),
+    learning_rate: float = Form(1.5e-5),
+    decay: float = Form(0.01),
+    log: int = Form(30),
+    lr_type: str = Form(""),
+    warmup_radio: float = Form(0.05),
+    fp16: bool = Form(False),
+    grad_accum: int = Form(2)
+):
     """Обучение модели для NER."""
+    contents = await dataset.read()
+    annotation = json.loads(contents)
 
-    trainer.train(
-        annotation=None,
-        model_name=data[MODEL_NAME],
-        epochs=data[EPOCHS],
-        train_batch_size=data[TRAIN_BATCH_SIZE],
-        eval_batch_size=data[EVAL_BATCH_SIZE],
-        learning_rate=data[LEARNING_RATE],
-        decay=data[DECAY],
-        logging_step=data[LOGGING_STEP],
-        lr_scheduler_type=data[LR_SCHEDULER_TYPE],
-        warmup_ratio=data[WARMUP_RATIO],
-        fp16=data[FP16],
-        gradient_accumulation_steps=data[GRADIENT_ACCUMULATION_STEPS]
+    results = trainer.train(
+        dataset_name=dataset.filename,
+        annotation=annotation,
+        model_name=model_name,
+        epochs=epochs,
+        train_batch_size=train_batch_size,
+        eval_batch_size=eval_batch_size,
+        learning_rate=learning_rate,
+        decay=decay,
+        logging_step=log,
+        lr_scheduler_type=lr_type,
+        warmup_ratio=warmup_radio,
+        fp16=fp16,
+        gradient_accumulation_steps=grad_accum
     )
-    return {'message': 'Обучение модели NER завершено успешно!'}
+    return {
+        "message": "Обучение завершено успешно!",
+        "metrics": results["metrics"]
+    }

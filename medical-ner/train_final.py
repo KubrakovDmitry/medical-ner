@@ -1,7 +1,6 @@
 """Модуль обучения """
 
 import logging
-import json
 from datetime import datetime
 
 import pandas as pd
@@ -37,8 +36,8 @@ def out_filter(data):
             if any(tag != OUT_TAG for tag in sent[TAGS])]
 
 
-# Функция для токенизации и выравнивания меток
 def tokenize_and_align_labels(examples):
+    """Токенизации и выравнивания меток."""
     global max_length
     tokenized_inputs = tokenizer(examples[TOKEN],
                                  truncation=True,
@@ -60,13 +59,15 @@ def tokenize_and_align_labels(examples):
             sep_index = tokenized_inputs['input_ids'][i].index(
                 tokenizer.sep_token_id)
             label_ids[sep_index] = -100
-        
+
         labels.append(label_ids)
 
     tokenized_inputs['labels'] = labels
     return tokenized_inputs
 
+
 def compute_metrics(p):
+    """Вычисление метки качества модели."""
     predictions, labels = p
     predictions = np.argmax(predictions, axis=2)
 
@@ -219,6 +220,7 @@ plt.xlabel("Эпохи")
 plt.ylabel("Значения метрик")
 plt.legend()
 plt.title("Метрики по эпохам")
-plt.savefig(f'images\\{model_name.replace("models/", "")}.png', dpi=300, bbox_inches="tight")
+plt.savefig(f'images\\{model_name.replace("models/", "")}.png', dpi=300,
+            bbox_inches="tight")
 
 print('Работа программы успешно завершина!')

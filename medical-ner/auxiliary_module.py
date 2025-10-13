@@ -1,3 +1,5 @@
+"""Вспомогательный модуль."""
+
 import json
 import pandas as pd
 
@@ -8,6 +10,7 @@ OUT = 'O'
 
 
 def joining_tokens(tokes):
+    """Соединение токенов в текст."""
     text = ' '.join(tokes)
     return text
 
@@ -52,12 +55,15 @@ def merge_tokens_for_bert(tokens, labels):
 
     for token, label in zip(tokens, labels):
         if token.startswith("##"):
-            current_token += token[2:]  # Убираем префикс '##' и добавляем к текущему слову
+            # Убираем префикс '##' и добавляем к текущему слову
+            current_token += token[2:]
         else:
-            if current_token:  # Если есть собранное слово, добавляем его в результат
+            # Если есть собранное слово, добавляем его в результат
+            if current_token:
                 merged_tokens.append(current_token)
                 merged_labels.append(current_label)
-            current_token = token  # Начинаем новое слово
+            # Начинаем новое слово
+            current_token = token
             current_label = label
 
     # Добавляем последний токен
@@ -84,14 +90,18 @@ def merge_tokens_for_t5(tokens, labels):
     current_label = labels[0]
 
     for token, label in zip(tokens, labels):
-        if token.startswith("_"):  # T5 использует символ "_" для обозначения начала нового слова
-            if current_token:  # Если есть собранное слово, добавляем его в результат
+        # T5 использует символ "_" для обозначения начала нового слова
+        if token.startswith("_"):
+            # Если есть собранное слово, добавляем его в результат
+            if current_token:
                 merged_tokens.append(current_token)
                 merged_labels.append(current_label)
-            current_token = token[1:]  # Убираем символ "_" и начинаем новое слово
+            # Убираем символ "_" и начинаем новое слово
+            current_token = token[1:]
             current_label = label
         else:
-            current_token += token  # Добавляем подслово к текущему слову
+            # Добавляем подслово к текущему слову
+            current_token += token
 
     # Добавляем последний токен
     if current_token:

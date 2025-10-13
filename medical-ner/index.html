@@ -17,8 +17,8 @@
                 <input type="reset" value="Очистить"/>
             </div>
         </form>
-        <div name="ner_container">
-            <input type="button" name="to_learn" value="Обучение модели">
+        <div id="ner_container">
+            <input type="button" id="to_learn" value="Обучение модели">
         </div>
 
         <script>
@@ -51,13 +51,10 @@
             }
             document.ner_form.send.addEventListener("click", sendTextForNER);
 
-            const model_url = '/model'
-
-            async function goToModelPage() {
-                
+            async function goToTrainPage() {
+                window.location.href = '/model'
             }
-
-            document
+            document.getElementById("to_learn").addEventListener("click", goToTrainPage)
         </script>
     </body>
 </html>

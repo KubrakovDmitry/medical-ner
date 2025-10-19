@@ -3,7 +3,7 @@
 import json
 from typing import Optional, Dict, Any
 from contextlib import asynccontextmanager
-from multiprocessing import Process, Manager, Value
+from multiprocessing import Process, Manager, Value, Queue
 
 from fastapi import FastAPI, Body, File, Form, UploadFile, BackgroundTasks
 from fastapi.responses import FileResponse, JSONResponse
@@ -14,18 +14,6 @@ from ner_trainer import NERTrainer
 
 
 TEXT = "text"
-ANNOTATION = 'dataset'
-MODEL_NAME = 'model_name'
-EPOCHS = 'epochs'
-TRAIN_BATCH_SIZE = 'train_batch_size'
-EVAL_BATCH_SIZE = 'eval_batch_size'
-LEARNING_RATE = 'learning_rate'
-DECAY = 'decay'
-LOGGING_STEP = 'log'
-LR_SCHEDULER_TYPE = 'lr_type'
-WARMUP_RATIO = 'warmup_radio'
-FP16 = 'fp16'
-GRADIENT_ACCUMULATION_STEPS = 'grad_accum'
 
 manager = None
 training_progress = None
@@ -64,8 +52,7 @@ async def lifespan(app: FastAPI):
 
 
 app = FastAPI(lifespan=lifespan)
-model = NERModel()
-trainer = NERTrainer()
+model = None
 
 app.mount("/static", StaticFiles(directory="static"), name="static")
 
@@ -77,7 +64,7 @@ def _progress_callback_factory(progress_proxy):
     """
     def progress_cb(status: str, **kwargs):
         """Обновление прогресса обучение."""
-        progress_proxy[status] = status
+        progress_proxy['status'] = status
         for k, v in kwargs.items():
             progress_proxy[k] = v
     return progress_cb
@@ -102,9 +89,9 @@ def run_training_process(dataset_name: str,
     progress_cb = _progress_callback_factory(progress_proxy)
     interrupt_check = lambda: bool(interrupt_flag.value)
 
-    local_trainer = NERTrainer()
+    trainer = NERTrainer()
     try:
-        results = local_trainer.train(
+        results = trainer.train(
             dataset_name=dataset_name,
             annotation=annotation,
             model_name=model_name,
@@ -131,6 +118,12 @@ def run_training_process(dataset_name: str,
         progress_proxy['error'] = str(error)
     finally:
         interrupt_flag.value = False
+
+
+@app.on_event("startup")
+async def startup_event():
+    global model
+    model = NERModel()
 
 
 @app.get("/")
@@ -205,26 +198,6 @@ async def train(
     training_process.start()
 
     return {'message': 'Обучение началось'}
-
-    # trainer.train(
-    #     dataset_name=dataset.filename,
-    #     annotation=annotation,
-    #     model_name=model_name,
-    #     epochs=epochs,
-    #     train_batch_size=train_batch_size,
-    #     eval_batch_size=eval_batch_size,
-    #     learning_rate=learning_rate,
-    #     decay=decay,
-    #     logging_step=log,
-    #     lr_scheduler_type=lr_type,
-    #     warmup_ratio=warmup_radio,
-    #     fp16=fp16,
-    #     gradient_accumulation_steps=grad_accum
-    # )
-    # return {
-    #     "message": "Обучение завершено успешно!",
-    #     "metrics": results["metrics"]
-    # }
 
 
 @app.get('/training-progress')

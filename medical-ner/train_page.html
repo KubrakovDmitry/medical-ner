@@ -177,7 +177,7 @@
                     progressText += `Эпоха: ${progress.current_epoch}/${progress.total_epochs}\n`;
                     progressText += `Шаг: ${progress.current_step}/${progress.total_steps}\n`;
                     progressText += `Прогресс: ${Math.round(progress.progress * 100)}%\n`;
-                    progressText += `Потери: ${progress.loss !== null ? progress.loss.toFixed(4): 'вычисляется...\n'}`
+                    progressText += `Потери: ${progress.loss !== null ? progress.loss.toFixed(4): 'вычисляется...'}`
 
                     if (progress.current_metrics) {
                         const metrics = progress.current_metrics;

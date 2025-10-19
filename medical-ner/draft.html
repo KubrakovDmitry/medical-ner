@@ -4,10 +4,53 @@
         <meta charset="utf-8">
         <title>Модель NER</title>
         <link rel="stylesheet" href="/static/styles.css">
+        <style>
+            .disabled {
+                opacity: 0.6;
+                pointer-events: none;
+            }
+            .button-loading {
+                position: relative;
+                color: transparent;
+            }
+            .button-loading::after {
+                content: "";
+                position: absolute;
+                width: 20px;
+                height: 20px;
+                top: 50%;
+                left: 50%;
+                margin-left: -10px;
+                margin-top: -10px;
+                border: 2px solid #ffffff;
+                border-radius: 50%;
+                border-top-color: transparent;
+                animation: spin 1s ease-in-out infinite;
+            }
+            @keyframes spin {
+                to { transform: rotate(360deg); }
+            }
+            #cancel_btn {
+                background-color: #dc3545;
+                color: white;
+                border: none;
+                padding: 10px 20px;
+                border-radius: 4px;
+                cursor: pointer;
+                margin-left: 10px;
+            }
+            #cancel_btn:hover {
+                background-color: #c82333;
+            }
+            #cancel_btn:disabled {
+                background-color: #6c757d;
+                cursor: not-allowed;
+            }
+        </style>
     </head>
     <body>
         <h2>Обучение модели NER</h2>
-        <form id="ner_form" name="ner_form" class="train_form">
+        <form id="ner_form" name="ner_form">
             <label for="model_name">Модель: </label>
             <select name="model_name" id="model_name">
                 <option value="DeepPavlov/rubert-base-cased">rubert</option>
@@ -17,7 +60,7 @@
             <label for="dataset">Датасет для обучения: </label>
             <input type="file" accept="json" id="dataset" name="dataset">
             <br/>
-            <label for="epochs">Укажите числе: </label>
+            <label for="epochs">Укажите число эпох: </label>
             <input type="number" name="epochs" id="epochs" value="3" min="1" max="50"/>
             <br/>
             <label for="train_batch_size">Размер обучающих пакетов</label>
@@ -61,14 +104,13 @@
             <label for="grad_accum">Накопление градиента перед обновлением весов моделей</label>
             <input type="number" name="grad_accum" id="grad_accum" min="0" max="1000" value="2"/>
             <br/>
-            <input name="submit" type="submit" value="Обучить"/>
-            <input name="cancel" type="reset" value="Отменить"/>
-            <input name="interrupt_training" type="button" value="Прервать обучение"/>
+            <div class="form-buttons">
+                <button type="submit" id="submit_btn">Обучить</button>
+                <button type="reset">Отменить</button>
+                <button type="button" id="cancel_btn" style="display: none;">Прервать обучение</button>
+            </div>
         </form>
         <div class="centered-container">
-            <div id="progress_bar_container">
-                <div id="progress_bar"></div>
-            </div>
             <div id="output_container" name="output_container">
                 <textarea id="result_area" name="result_area" readonly></textarea>
             </div>
@@ -78,41 +120,62 @@
             </div>
         </div>
         <script>
-            let trainingInProgress = false;
-            let progressInterval;
+            let isTraining = false;
+            let abortController = null;
+
+            function setFormState(disabled) {
+                const form = document.getElementById("ner_form");
+                const inputs = form.querySelectorAll('input, select, button[type="submit"]');
+                const cancelBtn = document.getElementById("cancel_btn");
+                const submitBtn = document.getElementById("submit_btn");
+
+                if (disabled) {
+                    form.classList.add('disabled');
+                    cancelBtn.style.display = 'inline-block';
+                    submitBtn.classList.add('button-loading');
+                    submitBtn.disabled = true;
+                } else {
+                    form.classList.remove('disabled');
+                    cancelBtn.style.display = 'none';
+                    submitBtn.classList.remove('button-loading');
+                    submitBtn.disabled = false;
+                }
+                
+                isTraining = disabled;
+            }
 
             async function trainModel(event) {
                 event.preventDefault();
-
-                if (trainingInProgress) {
-                    alert("Обучение уже запущено!");
+                
+                if (isTraining) {
+                    alert('Обучение уже запущено!');
+                    return;
                 }
 
-                const resultArea = document.getElementById("result_area");
-                const metricsList = document.getElementById("metrics_list");
+                const resultArea = document.getElementById("result_area")
+                const metricsList = document.getElementById("metrics_list")
 
-                resultArea.value = '';
-                metricsList.textContent = '';
+                resultArea.value = ''
+                metricsList.innerHTML = ''
 
+                // Создаем контроллер для возможности прерывания
+                abortController = new AbortController();
+                
                 try {
-                    trainingInProgress = true;
-                    resultArea.value = "Обучение запущено, подождите..."
-
-                    startProgressPolling();
+                    setFormState(true);
+                    resultArea.value = "Обучение запущено, подождите...\n";
 
                     const response = await fetch("/train-ner-model", {
-                            method: "POST",
-                            body: new FormData(event.target)
-                        });
-
+                        method: "POST",
+                        body: new FormData(event.target),
+                        signal: abortController.signal
+                    });
+                    
                     if (!response.ok) {
                         throw new Error(`Ошибка HTTP: ${response.status}`);
                     }
 
                     const result = await response.json();
-
-                    stopProgressPolling();
-
                     resultArea.value += "\n" + (result.message || "Обучение завершено успешно!");
 
                     if (result.metrics) {
@@ -126,86 +189,35 @@
                     }
                 }
                 catch (error) {
-                    stopProgressPolling();
-                    resultArea.value = "При обучении модели возникла ошибка!";
-                    console.log(error);
+                    if (error.name === 'AbortError') {
+                        resultArea.value += "\nОбучение прервано пользователем.";
+                    } else {
+                        resultArea.value += "\nПри обучении модели возникла ошибка!";
+                        console.log(error);
+                    }
                 }
                 finally {
-                    trainingInProgress = false;
+                    setFormState(false);
+                    abortController = null;
                 }
             }
 
-            function startProgressPolling() {
-                console.log("Запуск опроса прогресса...");
-                progressInterval = setInterval(async () => {
-                    try {
-                        const response = await fetch("/training-progress");
-                        if (response.ok) {
-                            const progress = await response.json();
-                            console.log("Прогресс получен:", progress);
-                            updateProgressDisplay(progress);
-                        } else {
-                            console.error("Ошибка HTTP:", response.status);
-                        }
-                    } catch (error) {
-                        console.error("Ошибка при запросе прогресса:", error);
-                    }
-                }, 1000);
-            }
-
-            function stopProgressPolling() {
-                if (progressInterval) {
-                    clearInterval(progressInterval);
-                    progressInterval = null;
+            function cancelTraining() {
+                if (abortController && isTraining) {
+                    abortController.abort();
+                    setFormState(false);
                 }
             }
 
-            function updateProgressDisplay(progress) {
-                const resultArea = document.getElementById("result_area");
-
-                console.log("Получен прогресс:", progress);
-
-                const bar = document.getElementById("progress_bar");
-                if (progress.progress !== undefined) {
-                    bar.style.width = Math.round(progress.progress * 100) + "%";
-                }
-
-                if (progress.status === "preparing") {
-                    resultArea.value = "Подготовка данных и модели...\n";
-                } else if (progress.status === 'training') {
-                    let progressText = `Обучение запущено...\n`;
-                    progressText += `Эпоха: ${progress.current_epoch}/${progress.total_epochs}\n`;
-                    progressText += `Шаг: ${progress.current_step}/${progress.total_steps}\n`;
-                    progressText += `Прогресс: ${Math.round(progress.progress * 100)}%\n`;
-                    progressText += `Потери: ${progress.loss !== null ? progress.loss.toFixed(4): 'вычисляется...\n'}`
-
-                    if (progress.current_metrics) {
-                        const metrics = progress.current_metrics;
-                        progressText += `Текущие метрики - Precision: ${metrics.precision?.toFixed(3) ?? '-'}, `;
-                        progressText += `Recall: ${metrics.recall?.toFixed(3) ?? '-'}, `;
-                        progressText += `F1: ${metrics.f1?.toFixed(3) ?? '-'}\n`;
-                    }
-
-                    resultArea.value = progressText;
-                } else if (progress.status === "completed") {
-                    resultArea.value = "Обучение завершено! Обработка результатов...\n";
-                } else if (progress.status === 'not_started') {
-                    resultArea.value = "Подготовка к обучению...\n";
-                }
-            }
-
+            // Инициализация событий
             document.getElementById("ner_form").addEventListener("submit", trainModel);
+            document.getElementById("cancel_btn").addEventListener("click", cancelTraining);
 
-            document.querySelector('input[name="interrupt_training"]').addEventListener('click', async function () {
-                if (trainingInProgress) {
-                    try {
-                        await fetch("/interrupt-training", {method: "POST"});
-                        stopProgressPolling();
-                        trainingInProgress = false;
-                        document.getElementById("result_area").value += "\n\nОбучение прервано пользователем";
-                    } catch (error) {
-                        console.error("Ошибка при прерывании обучения:", error);
-                    }
+            // Дополнительная защита - блокировка повторной отправки
+            document.getElementById("ner_form").addEventListener("submit", function() {
+                if (isTraining) {
+                    event.preventDefault();
+                    return false;
                 }
             });
         </script>

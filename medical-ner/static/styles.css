@@ -43,6 +43,7 @@ textarea {
 }
 
 input[type="button"],
+input[type="submit"],
 input[type="reset"] {
     padding: 10px 20px;
     font-size: 14px;
@@ -62,6 +63,16 @@ input[type="button"]:hover {
     background-color: #2980b9;
 }
 
+input[type="submit"] {
+    background-color: #73d954;
+    border-radius: 6px;
+}
+
+input[type="submit"]:hover {
+    background-color: #5fb944;
+    border-radius: 6px;
+}
+
 input[type="reset"] {
     background-color: #e74c3c;
     color: white;
@@ -69,4 +80,91 @@ input[type="reset"] {
 
 input[type="reset"]:hover {
     background-color: #c0392b;
+}
+
+
+.centered-container {
+    margin: 0 auto;
+    max-width: 800px;
+    padding: 20px;
+}
+
+#result_area {
+    width: 600px;
+    height: 100px;
+    font-family: monospace;
+    padding: 8px;
+    box-sizing: border-box;
+    display: block;
+    margin-left: auto;
+    margin-right: auto;
+}
+
+#metrics_list {
+    list-style-type: none;
+    padding: 0;
+}
+
+#output_container h3,
+#metrics_container h3{
+    text-align: center;
+}
+
+.train_form {
+    max-width: 600px;
+    margin: 0 auto;
+    background: #fff;
+    padding: 30px;
+    border-radius: 10px;
+    box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+}
+
+.train_form label {
+    display: block;
+    margin-bottom: 8px;
+    font-weight: bold;
+    color: #2c3e50;
+}
+
+.train_form input[type="text"],
+.train_form input[type="number"],
+.train_form input[type="file"],
+.train_form select {
+    display: block;
+    width: 100%;
+    padding: 10px;
+    margin-bottom: 20px;
+    border: 1px solid #ddd;
+    border-radius: 6px;
+    font-size: 14px;
+    box-sizing: border-box;
+}
+
+.train_form input[type="checkbox"] {
+    margin-right: 10px;
+    transform: scale(1.2);
+}
+
+.train_form label[for="fp16"] {
+    display: flex;
+    align-items: center;
+    margin-bottom: 20px;
+}
+
+.train_form br {
+    margin-bottom: 15px;
+}
+
+#progress_bar_container {
+    width: 600px;
+    background: #eee;
+    border-radius: 6px;
+    margin: 20px auto;
+}
+
+#progress_bar {
+    height: 20px;
+    width: 0%;
+    background: #4caf50;
+    border-radius: 6px;
 }

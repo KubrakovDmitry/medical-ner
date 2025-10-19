@@ -2,19 +2,22 @@
 
 import logging
 from datetime import datetime
+from typing import Callable, Optional
 
-import pandas as pd
+# import pandas as pd
 from sklearn.model_selection import train_test_split
 from datasets import Dataset, DatasetDict
+import transformers
 from transformers import (BertTokenizerFast, BertForTokenClassification,
                           TrainingArguments, Trainer)
 from transformers import DataCollatorForTokenClassification
+import torch
 # from datasets import load_metric
 # from evaluate import load
 from seqeval.metrics import (classification_report, f1_score, recall_score,
                              precision_score)
 import numpy as np
-import matplotlib.pyplot as plt
+# import matplotlib.pyplot as plt
 
 from auxiliary_module import (load_json_data, save_json_data,
                               convert_to_dataframe)
@@ -36,6 +39,13 @@ logging.basicConfig(filename='training_log.txt', level=logging.INFO,
 
 class NERTrainer:
     """Тренер моделей для NER."""
+
+    def __init__(self):
+        """Конструктор."""
+        self.device = torch.device("cuda" if torch.cuda.is_available()
+                                   else "cpu")
+        self.progress_callback = None
+        self.interrupt_check = None
 
     def _out_filter(self, data):
         """Фильтр для OUT."""
@@ -112,6 +122,49 @@ class NERTrainer:
             "report": classification_report(labels, predictions)
         }
 
+    def _callback(self, args, state, control, **kwargs):
+        """Колбек для отслеживания прогресса."""
+        print((f"Callback вызван: epoch={state.epoch}, "
+               f"step={state.global_step}"))
+        if self.progress_callback:
+            print("progress_callback доступен")
+        else:
+            print("progress_callback НЕ доступен")
+        if self.progress_callback and state.epoch is not None:
+            print('Работа колбэка')
+            progress = 0.0
+            if state.max_steps and state.max_steps > 0:
+                progress = state.global_step / state.max_steps
+
+            metrics = {}
+            if state.log_history:
+                latest_log = state.log_history[-1]
+                metrics = {
+                    'precision': latest_log.get('eval_precision'),
+                    'recall': latest_log.get('eval_recall'),
+                    'f1': latest_log.get('eval_f1'),
+                    'loss': latest_log.get('eval_loss', latest_log.get('loss'))
+                }
+            else:
+                metrics = {}
+                latest_log = {}
+
+            self.progress_callback(
+                status='training',
+                current_epoch=int(state.epoch) + 1,
+                total_epochs=state.num_train_epochs,
+                total_steps=state.max_steps,
+                current_step=state.global_step,
+                progress=progress,
+                loss=latest_log.get('loss') if state.log_history else None,
+                current_metrics=metrics
+            )
+
+        if self.interrupt_check and self.interrupt_check():
+            control.should_training_stop = True
+
+        return control
+
     def train(self,
               dataset_name='data_bio_4.json',
               annotation='content\\data_bio_4.json',
@@ -126,8 +179,16 @@ class NERTrainer:
               lr_scheduler_type="linear",
               warmup_ratio=0.06,
               fp16=True,
-              gradient_accumulation_steps=2):
+              gradient_accumulation_steps=2,
+              progress_callback=None,
+              interrupt_check=None):
         """Обучение модели для NER."""
+        self.progress_callback = progress_callback
+        self.interrupt_check = interrupt_check
+
+        if progress_callback:
+            progress_callback('preparing', progress=0.0)
+
         if annotation:
             data = self._out_filter(annotation)
         else:
@@ -160,7 +221,7 @@ class NERTrainer:
         model = BertForTokenClassification.from_pretrained(
             model_name,
             num_labels=len(label_list),
-            trust_remote_code=True)
+            trust_remote_code=True).to(self.device)
 
         model.config.label2id = self.label2id
         model.config.id2label = self.id2label
@@ -174,7 +235,7 @@ class NERTrainer:
         # Настройки для тренировки
         training_args = TrainingArguments(
             output_dir="./results",
-            evaluation_strategy="epoch",
+            eval_strategy="epoch",
             learning_rate=learning_rate,
             per_device_train_batch_size=train_batch_size,
             per_device_eval_batch_size=eval_batch_size,
@@ -186,7 +247,8 @@ class NERTrainer:
             gradient_accumulation_steps=gradient_accumulation_steps,
             warmup_ratio=warmup_ratio,
             fp16=fp16,
-            lr_scheduler_type=lr_scheduler_type
+            lr_scheduler_type=lr_scheduler_type,
+            report_to=None
         )
 
         for param in model.parameters():
@@ -199,10 +261,19 @@ class NERTrainer:
             data_collator=data_collator,
             compute_metrics=self._compute_metrics,
             train_dataset=tokenized_datasets[TRAIN],
-            eval_dataset=tokenized_datasets[TEST]
+            eval_dataset=tokenized_datasets[TEST],
+            # callbacks=[Callback(self)] if progress_callback else []
         )
 
-        trainer.train()
+        if progress_callback:
+            trainer.add_callback(Callback(self))
+
+        try:
+            trainer.train()
+        except Exception as error:
+            if progress_callback:
+                progress_callback('error', error=str(error))
+            raise
 
         # Сохранение модели
         annotation_name = dataset_name.split('.')[0]
@@ -210,7 +281,8 @@ class NERTrainer:
         timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
         base_model_name = model_name.split('/')[-1]
 
-        model_name = f"models/model_{clean_annotation}_{base_model_name}_{timestamp}"
+        model_name = (
+            f"models/model_{clean_annotation}_{base_model_name}_{timestamp}")
 
         model.save_pretrained(model_name)
         self.tokenizer.save_pretrained(model_name)
@@ -257,3 +329,36 @@ class NERTrainer:
                 "loss": results.get("eval_loss")
             }
         }
+
+
+class Callback(transformers.TrainerCallback):
+    """Колбэк."""
+
+    def __init__(self, trainer_instance: NERTrainer):
+        """Контсруктор."""
+        self.trainer_instance = trainer_instance
+
+    def on_step_begin(self, args, state, control, **kwargs):
+        """Обновление прогресса до шага."""
+        if (self.trainer_instance.interrupt_check
+                and self.trainer_instance.interrupt_check()):
+            control.should_training_stop = True
+        return control
+
+    def on_step_end(self, args, state, control, **kwargs):
+        """Обновление прогресса после шага."""
+        if (self.trainer_instance.interrupt_check
+                and self.trainer_instance.interrupt_check()):
+            print("Прерывание обучения!")
+            control.should_training_stop = True
+        return control
+
+    def on_epoch_begin(self, args, state, control, **kwargs):
+        """Обновление прогресса в начале эпохи."""
+        self.trainer_instance._callback(args, state, control, **kwargs)
+        return control
+
+    def on_evaluate(self, args, state, control, **kwargs):
+        """Обновление прогресса во время валидации."""
+        self.trainer_instance._callback(args, state, control, **kwargs)
+        return control
